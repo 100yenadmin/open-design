@@ -16,6 +16,7 @@ export const WIN_PREBUNDLE_ENTRYPOINTS_DIR_NAME = "prebundle-entrypoints";
 export const WIN_PREBUNDLE_RUNTIME_DEPENDENCIES = {
   "better-sqlite3": "12.9.0",
   "blake3-wasm": "2.1.5",
+  "playwright-core": "1.60.0",
 } as const;
 
 export const WIN_STANDALONE_PREBUNDLE_EXCLUDED_INTERNAL_PACKAGES = [
@@ -42,11 +43,12 @@ export const WIN_PREBUNDLE_POLICIES = {
     label: "packaged main",
   },
   daemonCli: {
-    externals: ["better-sqlite3", "blake3-wasm"],
+    externals: ["better-sqlite3", "blake3-wasm", "playwright-core"],
     forbiddenInputs: [
       "/node_modules/@open-design/daemon/",
       "/node_modules/better-sqlite3/",
       "/node_modules/blake3-wasm/",
+      "/node_modules/playwright-core/",
       "/node_modules/electron/",
       "/node_modules/next/",
       "/node_modules/openai/",
@@ -56,11 +58,12 @@ export const WIN_PREBUNDLE_POLICIES = {
     label: "daemon cli",
   },
   daemonSidecar: {
-    externals: ["better-sqlite3", "blake3-wasm"],
+    externals: ["better-sqlite3", "blake3-wasm", "playwright-core"],
     forbiddenInputs: [
       "/node_modules/@open-design/daemon/",
       "/node_modules/better-sqlite3/",
       "/node_modules/blake3-wasm/",
+      "/node_modules/playwright-core/",
       "/node_modules/electron/",
       "/node_modules/next/",
       "/node_modules/openai/",

@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { migrateCritique } from './critique/persistence.js';
 import { migrateMediaTasks } from './media-tasks.js';
+import { migrateBrowserRenderTasks } from './browser-render-tasks.js';
 import { migratePlugins } from './plugins/persistence.js';
 
 type SqliteDb = Database.Database;
@@ -278,6 +279,7 @@ function migrate(db: SqliteDb): void {
   }
   migrateCritique(db);
   migrateMediaTasks(db);
+  migrateBrowserRenderTasks(db);
   migratePlugins(db);
 }
 

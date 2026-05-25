@@ -94,6 +94,7 @@ export interface ServerContext {
   liveArtifacts: any;
   deploy: any;
   media: any;
+  browserRender: any;
   appConfig: any;
   orbit: any;
   nativeDialogs: any;

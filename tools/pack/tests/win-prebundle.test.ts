@@ -68,13 +68,22 @@ describe("win standalone prebundle policy", () => {
   it("documents the explicit code-level bundle boundaries", () => {
     expect(WIN_PREBUNDLE_ESBUILD_TARGET).toBe("node24");
     expect(WIN_PREBUNDLE_POLICIES.packagedMain.externals).toEqual(["electron"]);
-    expect(WIN_PREBUNDLE_POLICIES.daemonCli.externals).toEqual(["better-sqlite3", "blake3-wasm"]);
-    expect(WIN_PREBUNDLE_POLICIES.daemonSidecar.externals).toEqual(["better-sqlite3", "blake3-wasm"]);
+    expect(WIN_PREBUNDLE_POLICIES.daemonCli.externals).toEqual([
+      "better-sqlite3",
+      "blake3-wasm",
+      "playwright-core",
+    ]);
+    expect(WIN_PREBUNDLE_POLICIES.daemonSidecar.externals).toEqual([
+      "better-sqlite3",
+      "blake3-wasm",
+      "playwright-core",
+    ]);
     expect(WIN_PREBUNDLE_POLICIES.webSidecar.externals).toEqual([]);
     expect(WIN_DAEMON_PREBUNDLE_ESM_REQUIRE_BANNER).toContain("createRequire");
     expect(WIN_PREBUNDLE_RUNTIME_DEPENDENCIES).toEqual({
       "better-sqlite3": "12.9.0",
       "blake3-wasm": "2.1.5",
+      "playwright-core": "1.60.0",
     });
     expect(WIN_PREBUNDLED_DAEMON_CLI_RELATIVE_PATH).toBe("app/prebundled/daemon/daemon-cli.mjs");
     expect(WIN_PREBUNDLED_DAEMON_SIDECAR_RELATIVE_PATH).toBe("app/prebundled/daemon/daemon-sidecar.mjs");
@@ -139,14 +148,14 @@ describe("assertWinPrebundleMetafile", () => {
     }
   });
 
-  it("rejects a daemon metafile that bundled wasm-backed runtime dependencies", async () => {
+  it("rejects a daemon metafile that bundled runtime dependencies", async () => {
     const root = await mkdtemp(join(tmpdir(), "open-design-win-prebundle-"));
     const metafilePath = join(root, "unsafe-daemon.json");
 
     try {
       await writeFile(
         metafilePath,
-        JSON.stringify({ inputs: { "/repo/node_modules/blake3-wasm/dist/node/index.js": {} } }),
+        JSON.stringify({ inputs: { "/repo/node_modules/playwright-core/index.js": {} } }),
         "utf8",
       );
 

@@ -39,6 +39,29 @@ const ARTIFACT_INPUT_SCHEMA = {
   description: 'LiveArtifactCreateInput/LiveArtifactUpdateInput JSON plus optional templateHtml and provenanceJson fields.',
 } satisfies JsonObject;
 
+const BROWSER_RENDER_INPUT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['entry'],
+  properties: {
+    entry: { type: 'string', minLength: 1 },
+    format: { type: 'string', enum: ['screenshot', 'pdf'] },
+    output: { type: 'string', minLength: 1 },
+    viewport: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        width: { type: 'number' },
+        height: { type: 'number' },
+      },
+    },
+    fullPage: { type: 'boolean' },
+    timeoutMs: { type: 'number' },
+  },
+} satisfies JsonObject;
+
+const BROWSER_RENDER_TERMINAL_STATUSES = new Set(['done', 'failed', 'interrupted']);
+
 export function createLiveArtifactsMcpTools(): McpTool[] {
   return [
     {
@@ -106,6 +129,11 @@ export function createLiveArtifactsMcpTools(): McpTool[] {
         },
       },
     },
+    {
+      name: 'browser_render',
+      description: 'Render an Open Design project HTML artifact to PNG screenshot or PDF through daemon-owned browser automation. Use this instead of launching Playwright/Puppeteer inside the agent sandbox. POSIX equivalent: `"$OD_NODE_BIN" "$OD_BIN" tools browser-render render --entry index.html --output snapshots/index.png`.',
+      inputSchema: BROWSER_RENDER_INPUT_SCHEMA,
+    },
   ];
 }
 
@@ -160,6 +188,34 @@ async function requestJson(pathname: string, init: RequestInit = {}): Promise<un
   return body;
 }
 
+async function waitForBrowserRenderTask(taskId: string, timeoutArg: unknown): Promise<unknown> {
+  const timeoutMs = typeof timeoutArg === 'number' && Number.isFinite(timeoutArg) && timeoutArg > 0
+    ? Math.floor(timeoutArg)
+    : 120_000;
+  const deadline = Date.now() + timeoutMs;
+  let since = 0;
+
+  while (Date.now() <= deadline) {
+    const response = await requestJson('/api/tools/browser-render/wait', {
+      method: 'POST',
+      body: JSON.stringify({
+        taskId,
+        since,
+        timeoutMs: Math.min(25_000, Math.max(0, deadline - Date.now())),
+      }),
+    });
+    if (response && typeof response === 'object' && !Array.isArray(response)) {
+      const body = response as JsonObject;
+      if (typeof body.nextSince === 'number') since = body.nextSince;
+      if (typeof body.status === 'string' && BROWSER_RENDER_TERMINAL_STATUSES.has(body.status)) {
+        return body;
+      }
+    }
+  }
+
+  throw new Error(`browser render task ${taskId} did not finish within ${timeoutMs}ms`);
+}
+
 async function callTool(name: string, args: JsonObject): Promise<unknown> {
   if (name === 'live_artifacts_create') {
     return await requestJson('/api/tools/live-artifacts/create', {
@@ -197,6 +253,26 @@ async function callTool(name: string, args: JsonObject): Promise<unknown> {
       method: 'POST',
       body: JSON.stringify({ connectorId: args.connectorId, toolName: args.toolName, input: args.input ?? {} }),
     });
+  }
+  if (name === 'browser_render') {
+    const accepted = await requestJson('/api/tools/browser-render', {
+      method: 'POST',
+      body: JSON.stringify({
+        entry: args.entry,
+        ...(args.format === 'pdf' || args.format === 'screenshot' ? { format: args.format } : {}),
+        ...(typeof args.output === 'string' ? { output: args.output } : {}),
+        ...(args.viewport && typeof args.viewport === 'object' && !Array.isArray(args.viewport) ? { viewport: args.viewport } : {}),
+        ...(args.fullPage === true ? { fullPage: true } : {}),
+        ...(typeof args.timeoutMs === 'number' ? { timeoutMs: args.timeoutMs } : {}),
+      }),
+    });
+    const taskId = accepted && typeof accepted === 'object' && !Array.isArray(accepted)
+      ? (accepted as JsonObject).taskId
+      : null;
+    if (typeof taskId !== 'string' || !taskId) {
+      throw new Error('daemon did not return a browser render task id');
+    }
+    return await waitForBrowserRenderTask(taskId, args.timeoutMs);
   }
   throw new Error(`unknown MCP tool: ${name}`);
 }

@@ -91,6 +91,9 @@ importers:
       multer:
         specifier: 2.1.1
         version: 2.1.1
+      playwright-core:
+        specifier: 1.60.0
+        version: 1.60.0
       posthog-node:
         specifier: 5.34.6
         version: 5.34.6
