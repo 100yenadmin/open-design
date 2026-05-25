@@ -35,7 +35,7 @@ interface ProjectPayload { project?: ProjectSummary; id?: string; name?: string;
 interface ActiveContext { active?: boolean; projectId?: string; projectName?: string | null; fileName?: string | null; ageMs?: number | null }
 type ResolvedProject = { id: string; name: string; source: 'uuid' | 'id' | 'exact' | 'slug' | 'substring' };
 interface ProjectListCache { baseUrl: string; t: number; list: ProjectSummary[] }
-interface McpArgs extends JsonObject { project?: unknown; entry?: unknown; include?: unknown; maxBytes?: unknown; path?: unknown; offset?: unknown; limit?: unknown; since?: unknown; query?: unknown; pattern?: unknown; max?: unknown; name?: unknown; content?: unknown; encoding?: unknown; artifactManifest?: unknown; confirm?: unknown }
+interface McpArgs extends JsonObject { project?: unknown; entry?: unknown; include?: unknown; maxBytes?: unknown; path?: unknown; offset?: unknown; limit?: unknown; since?: unknown; query?: unknown; pattern?: unknown; max?: unknown; name?: unknown; content?: unknown; encoding?: unknown; artifactManifest?: unknown; confirm?: unknown; format?: unknown; output?: unknown; viewport?: unknown; fullPage?: unknown; timeoutMs?: unknown }
 interface ProjectFileBundleEntry { name: string; mime: string; size: number | null; content: string | null; binary: boolean }
 interface BundleInput { project: ProjectPayload | ProjectSummary; entry: string; files: ProjectFileBundleEntry[]; truncated: boolean; active: ActiveContext | null; resolved?: ResolvedProject | null }
 interface ErrorWithCode { message?: string; code?: string; cause?: { code?: string } }
@@ -237,6 +237,50 @@ const TOOL_DEFS = [
     annotations: { ...WRITE_ANNOTATIONS, title: 'Create Open Design artifact' },
   },
   {
+    name: 'browser_render',
+    description:
+      'Render a project HTML file through the Open Design daemon browser and write a PNG screenshot or PDF back into the project. Use this for visual QA/PDF export instead of launching Playwright/Puppeteer inside the agent sandbox. Project optional; defaults to the active project.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project: PROJECT_ARG,
+        entry: {
+          type: 'string',
+          description:
+            "Project-relative HTML entry. Defaults to the active file when available, then the project's metadata.entryFile.",
+        },
+        format: {
+          type: 'string',
+          enum: ['screenshot', 'pdf'],
+          description: 'screenshot (default) | pdf',
+        },
+        output: {
+          type: 'string',
+          description: 'Optional project-relative output path. Defaults beside the entry as .png or .pdf.',
+        },
+        viewport: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            width: { type: 'number' },
+            height: { type: 'number' },
+          },
+          description: 'Screenshot/PDF viewport. Defaults to 1440x900.',
+        },
+        fullPage: {
+          type: 'boolean',
+          description: 'Capture the full page for screenshot renders.',
+        },
+        timeoutMs: {
+          type: 'number',
+          description: 'Overall wait timeout in ms. Defaults to 120000.',
+        },
+      },
+      additionalProperties: false,
+    },
+    annotations: { ...WRITE_ANNOTATIONS, title: 'Render Open Design artifact' },
+  },
+  {
     name: 'write_file',
     description:
       'Write (or overwrite) a project file. Unlike create_artifact this does not require an ArtifactManifest and tolerates existing targets, so it is the right tool for iterating on a file the agent (or the user) already created. Project optional; defaults to the active project.',
@@ -347,6 +391,9 @@ export async function runMcpStdio({ daemonUrl }: RunMcpOptions): Promise<void> {
         ' - create_artifact(name, content) to create one normal artifact',
         '    entry file in the active or specified project. It rejects',
         '    existing targets and can accept an artifactManifest sidecar.',
+        ' - browser_render(entry) to render a project HTML file through',
+        '    daemon-owned browser automation and write PNG/PDF output.',
+        '    Use this for visual QA instead of launching local Playwright.',
         ' - write_file(path, content) to overwrite or freshly create any',
         '    project file when an ArtifactManifest is not required.',
         '    Use this to iterate on a file create_artifact already wrote.',
@@ -567,6 +614,8 @@ async function handleMcpToolCall(baseUrl: string, name: unknown, args: McpArgs) 
       }
       case 'create_artifact':
         return await createArtifact(baseUrl, args);
+      case 'browser_render':
+        return await browserRender(baseUrl, args);
       case 'write_file':
         return await writeFile(baseUrl, args);
       case 'delete_file':
@@ -694,6 +743,84 @@ async function createArtifact(baseUrl: string, args: McpArgs) {
     ? (payload as JsonObject)
     : { result: payload };
   return ok(withActiveEcho(result, active, resolved));
+}
+
+async function browserRender(baseUrl: string, args: McpArgs) {
+  const { id, resolved, active } = await resolveProjectArg(baseUrl, args.project);
+  let entry = typeof args.entry === 'string' && args.entry.trim() ? args.entry.trim() : '';
+  if (!entry && active?.fileName) entry = active.fileName;
+  if (!entry) {
+    const projectData = await getJson<ProjectPayload>(`${baseUrl}/api/projects/${encodeURIComponent(id)}`);
+    const project = projectData?.project ?? projectData;
+    const metadataEntry = project?.metadata?.entryFile;
+    if (typeof metadataEntry === 'string' && metadataEntry.trim()) entry = metadataEntry.trim();
+  }
+  requireString(entry, 'entry');
+
+  const body = {
+    entry,
+    ...(args.format === 'pdf' || args.format === 'screenshot' ? { format: args.format } : {}),
+    ...(typeof args.output === 'string' && args.output.trim() ? { output: args.output.trim() } : {}),
+    ...(args.viewport && typeof args.viewport === 'object' && !Array.isArray(args.viewport) ? { viewport: args.viewport } : {}),
+    ...(args.fullPage === true ? { fullPage: true } : {}),
+    ...(typeof args.timeoutMs === 'number' ? { timeoutMs: args.timeoutMs } : {}),
+  };
+  const startUrl = `${baseUrl}/api/projects/${encodeURIComponent(id)}/browser-render`;
+  const startResp = await fetch(startUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!startResp.ok) {
+    return errorResult(await formatDaemonError(startResp, startUrl));
+  }
+  const accepted = (await startResp.json()) as JsonObject;
+  const taskId = typeof accepted.taskId === 'string' ? accepted.taskId : '';
+  if (!taskId) throw new Error('daemon did not return a browser render task id');
+
+  const snapshot = await waitForBrowserRenderTask(baseUrl, taskId, args.timeoutMs);
+  if (snapshot.status === 'failed' || snapshot.status === 'interrupted') {
+    const detail =
+      snapshot.error && typeof snapshot.error === 'object' && 'message' in snapshot.error
+        ? String((snapshot.error as JsonObject).message)
+        : JSON.stringify(snapshot.error ?? snapshot);
+    return errorResult(`browser render ${snapshot.status}: ${detail}`);
+  }
+  return ok(withActiveEcho(snapshot, active, resolved));
+}
+
+async function waitForBrowserRenderTask(
+  baseUrl: string,
+  taskId: string,
+  timeoutArg: unknown,
+): Promise<JsonObject> {
+  const timeoutMs = typeof timeoutArg === 'number' && Number.isFinite(timeoutArg) && timeoutArg > 0
+    ? Math.floor(timeoutArg)
+    : 120_000;
+  const deadline = Date.now() + timeoutMs;
+  let since = 0;
+  while (Date.now() <= deadline) {
+    const waitUrl = `${baseUrl}/api/browser-render/tasks/${encodeURIComponent(taskId)}/wait`;
+    const waitResp = await fetch(waitUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        since,
+        timeoutMs: Math.min(25_000, Math.max(0, deadline - Date.now())),
+      }),
+    });
+    if (!waitResp.ok) throw new Error(await formatDaemonError(waitResp, waitUrl));
+    const snapshot = (await waitResp.json()) as JsonObject;
+    if (typeof snapshot.nextSince === 'number') since = snapshot.nextSince;
+    if (
+      snapshot.status === 'done' ||
+      snapshot.status === 'failed' ||
+      snapshot.status === 'interrupted'
+    ) {
+      return snapshot;
+    }
+  }
+  throw new Error(`browser render task ${taskId} did not finish within ${timeoutMs}ms`);
 }
 
 // Resource description renderers in some MCP UIs collapse whitespace

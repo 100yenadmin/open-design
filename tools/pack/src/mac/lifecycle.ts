@@ -1,5 +1,6 @@
 import { execFile, type ChildProcess } from "node:child_process";
-import { mkdir, open, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, open, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { promisify } from "node:util";
 
@@ -31,11 +32,20 @@ import { PACKAGED_CONFIG_PATH_ENV, writeLaunchPackagedConfig } from "./app-confi
 import { DESKTOP_LOG_ECHO_ENV } from "./constants.js";
 import { clearQuarantine, pathExists } from "./fs.js";
 import { resolveMacInstallIdentity } from "./identity.js";
-import { desktopIdentityPath, desktopLogPath, macAppExecutablePath, resolveMacPaths } from "./paths.js";
+import { desktopIdentityPath, desktopLogPath, macAppExecutablePath, resolveMacPaths, sanitizeNamespace } from "./paths.js";
 import type { DesktopRootIdentityFallback, DesktopRootIdentityMarker, MacCleanupResult, MacInspectResult, MacInstallResult, MacStartResult, MacStartSource, MacStopResult, MacUninstallResult } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 const UPDATE_ACTION_TIMEOUT_MS = 10 * 60 * 1000;
+const ACTIVE_MOUNT_MARKER_VERSION = 1;
+
+type ActiveMountMarker = {
+  dmgPath: string;
+  mountPoint: string;
+  namespace: string;
+  updatedAt: string;
+  version: typeof ACTIVE_MOUNT_MARKER_VERSION;
+};
 
 function desktopStamp(config: ToolPackConfig): SidecarStamp {
   return {
@@ -53,6 +63,106 @@ function desktopStamp(config: ToolPackConfig): SidecarStamp {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value != null && !Array.isArray(value);
+}
+
+function isActiveMountMarker(value: unknown): value is ActiveMountMarker {
+  return (
+    isRecord(value) &&
+    value.version === ACTIVE_MOUNT_MARKER_VERSION &&
+    typeof value.dmgPath === "string" &&
+    typeof value.mountPoint === "string" &&
+    typeof value.namespace === "string" &&
+    typeof value.updatedAt === "string"
+  );
+}
+
+function activeMountMarkerPath(config: ToolPackConfig): string {
+  return join(
+    config.roots.output.platformRoot,
+    `${sanitizeNamespace(config.namespace)}.active-mount.json`,
+  );
+}
+
+async function readActiveMountMarker(config: ToolPackConfig): Promise<ActiveMountMarker | null> {
+  try {
+    const parsed: unknown = JSON.parse(await readFile(activeMountMarkerPath(config), "utf8"));
+    return isActiveMountMarker(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeActiveMountMarker(
+  config: ToolPackConfig,
+  input: { dmgPath: string; mountPoint: string },
+): Promise<void> {
+  await mkdir(config.roots.output.platformRoot, { recursive: true });
+  await writeFile(
+    activeMountMarkerPath(config),
+    `${JSON.stringify({
+      dmgPath: input.dmgPath,
+      mountPoint: input.mountPoint,
+      namespace: config.namespace,
+      updatedAt: new Date().toISOString(),
+      version: ACTIVE_MOUNT_MARKER_VERSION,
+    }, null, 2)}\n`,
+    "utf8",
+  );
+}
+
+async function clearActiveMountMarker(config: ToolPackConfig): Promise<void> {
+  await rm(activeMountMarkerPath(config), { force: true });
+}
+
+async function isMountedAt(mountPoint: string): Promise<boolean> {
+  try {
+    const canonicalMountPoint = await realpath(mountPoint).catch(() => mountPoint);
+    const { stdout } = await execFileAsync("mount", []);
+    return String(stdout)
+      .split("\n")
+      .some((line) => (
+        line.includes(` on ${mountPoint} (`) ||
+        line.includes(` on ${canonicalMountPoint} (`)
+      ));
+  } catch {
+    return true;
+  }
+}
+
+function isRetryableMountDirectoryRemovalError(error: unknown): boolean {
+  if (!isRecord(error) || typeof error.code !== "string") return false;
+  return error.code === "EBUSY" || error.code === "ENOTEMPTY";
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function removeMountDirectoryIfUnused(mountPoint: string): Promise<void> {
+  for (const delayMs of [0, 150, 500]) {
+    if (delayMs > 0) await sleep(delayMs);
+    try {
+      await rm(mountPoint, { force: true, recursive: true });
+      return;
+    } catch (error) {
+      if (!isRetryableMountDirectoryRemovalError(error)) throw error;
+    }
+  }
+}
+
+async function detachMarkedMount(config: ToolPackConfig, marker: ActiveMountMarker): Promise<boolean> {
+  if (!(await isMountedAt(marker.mountPoint))) {
+    await clearActiveMountMarker(config);
+    await removeMountDirectoryIfUnused(marker.mountPoint);
+    return false;
+  }
+
+  const detached = await detachMount(marker.mountPoint);
+  if (detached) {
+    await clearActiveMountMarker(config);
+    await removeMountDirectoryIfUnused(marker.mountPoint);
+  }
+  return detached;
 }
 
 function isDesktopRootIdentityMarker(value: unknown): value is DesktopRootIdentityMarker {
@@ -469,17 +579,16 @@ async function resolvePackedMacStartTarget(config: ToolPackConfig): Promise<{
 }
 
 async function detachMount(mountPoint: string): Promise<boolean> {
-  try {
-    await execFileAsync("hdiutil", ["detach", mountPoint, "-quiet"]);
-    return true;
-  } catch {
+  if (!(await isMountedAt(mountPoint))) return false;
+  for (const args of [["detach", mountPoint, "-quiet"], ["detach", mountPoint, "-force", "-quiet"]]) {
     try {
-      await execFileAsync("hdiutil", ["detach", mountPoint, "-force", "-quiet"]);
-      return true;
+      await execFileAsync("hdiutil", args);
     } catch {
-      return false;
+      // Try the force path below, then verify with mount(8).
     }
+    if (!(await isMountedAt(mountPoint))) return true;
   }
+  return false;
 }
 
 export async function installPackedMacDmg(config: ToolPackConfig): Promise<MacInstallResult> {
@@ -489,10 +598,19 @@ export async function installPackedMacDmg(config: ToolPackConfig): Promise<MacIn
     throw new Error(`no mac dmg found at ${paths.dmgPath}; run tools-pack mac build --to all first`);
   }
 
+  const previousActiveMount = await readActiveMountMarker(config);
+  if (previousActiveMount != null) {
+    const detachedPreviousMount = await detachMarkedMount(config, previousActiveMount);
+    if (!detachedPreviousMount && await isMountedAt(previousActiveMount.mountPoint)) {
+      throw new Error(
+        `failed to detach previous mac dmg mount at ${previousActiveMount.mountPoint}; run tools-pack mac cleanup --namespace ${config.namespace}`,
+      );
+    }
+  }
   await rm(paths.mountPoint, { force: true, recursive: true });
-  await mkdir(paths.mountPoint, { recursive: true });
   await rm(paths.installedAppPath, { force: true, recursive: true });
   await mkdir(paths.installApplicationsRoot, { recursive: true });
+  const mountPoint = await mkdtemp(join(tmpdir(), "open-design-tools-pack-mount-"));
 
   let detached = false;
   try {
@@ -500,21 +618,30 @@ export async function installPackedMacDmg(config: ToolPackConfig): Promise<MacIn
       "attach",
       paths.dmgPath,
       "-mountpoint",
-      paths.mountPoint,
+      mountPoint,
       "-nobrowse",
       "-quiet",
     ]);
-    await execFileAsync("ditto", [join(paths.mountPoint, identity.publicAppBundleName), paths.installedAppPath]);
+    await writeActiveMountMarker(config, { dmgPath: paths.dmgPath, mountPoint });
+    await execFileAsync("ditto", [join(mountPoint, identity.publicAppBundleName), paths.installedAppPath]);
     await clearQuarantine(paths.installedAppPath);
   } finally {
-    detached = await detachMount(paths.mountPoint);
+    const activeMount = await readActiveMountMarker(config);
+    if (activeMount != null) {
+      detached = await detachMarkedMount(config, activeMount);
+    } else {
+      detached = await detachMount(mountPoint);
+      if (detached || !(await isMountedAt(mountPoint))) {
+        await removeMountDirectoryIfUnused(mountPoint);
+      }
+    }
   }
 
   return {
     detached,
     dmgPath: paths.dmgPath,
     installedAppPath: paths.installedAppPath,
-    mountPoint: paths.mountPoint,
+    mountPoint,
     namespace: config.namespace,
   };
 }
@@ -735,7 +862,10 @@ export async function uninstallPackedMacApp(config: ToolPackConfig): Promise<Mac
 export async function cleanupPackedMacNamespace(config: ToolPackConfig): Promise<MacCleanupResult> {
   const paths = resolveMacPaths(config);
   const stop = await stopPackedMacApp(config);
-  const detachedMount = await detachMount(paths.mountPoint);
+  const activeMount = await readActiveMountMarker(config);
+  const detachedActiveMount = activeMount == null ? false : await detachMarkedMount(config, activeMount);
+  const detachedLegacyMount = await detachMount(paths.mountPoint);
+  const detachedMount = detachedActiveMount || detachedLegacyMount;
   const removedOutputRoot = await pathExists(config.roots.output.namespaceRoot);
   const removedRuntimeNamespaceRoot = await pathExists(config.roots.runtime.namespaceRoot);
 

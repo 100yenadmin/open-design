@@ -10,6 +10,8 @@ export const CHAT_TOOL_ENDPOINTS = [
   '/api/tools/connectors/list',
   '/api/tools/connectors/execute',
   '/api/tools/design-systems/read',
+  '/api/tools/browser-render',
+  '/api/tools/browser-render/wait',
 ] as const;
 
 export const CHAT_TOOL_OPERATIONS = [
@@ -20,6 +22,8 @@ export const CHAT_TOOL_OPERATIONS = [
   'connectors:list',
   'connectors:execute',
   'design-systems:read',
+  'browser-render:create',
+  'browser-render:wait',
 ] as const;
 
 export type ToolEndpoint = (typeof CHAT_TOOL_ENDPOINTS)[number] | (string & {});

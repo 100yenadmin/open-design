@@ -386,6 +386,8 @@ import { registerLiveArtifactRoutes } from './live-artifact-routes.js';
 import { registerDesignSystemToolRoutes } from './design-system-tool-routes.js';
 import { registerDeployRoutes, registerDeploymentCheckRoutes } from './deploy-routes.js';
 import { registerMediaRoutes } from './media-routes.js';
+import { renderBrowserArtifact } from './browser-render.js';
+import { registerBrowserRenderRoutes } from './browser-render-routes.js';
 import { registerProjectRoutes, registerProjectArtifactRoutes, registerProjectFileRoutes, registerProjectUploadRoutes } from './project-routes.js';
 import { registerFinalizeRoutes, registerImportRoutes, registerProjectExportRoutes } from './import-export-routes.js';
 import { registerHandoffRoutes } from './handoff-routes.js';
@@ -1566,6 +1568,7 @@ export function createAgentRuntimeToolPrompt(
     '- On PowerShell use `& $env:OD_NODE_BIN $env:OD_BIN tools ...`; on cmd.exe use `"%OD_NODE_BIN%" "%OD_BIN%" tools ...`.',
     tokenLine,
     '- Prefer project wrapper commands through `OD_NODE_BIN` + `OD_BIN` over raw HTTP. The wrappers read these environment values automatically.',
+    '- For visual checks, screenshots, or PDFs of Open Design HTML artifacts, use `"$OD_NODE_BIN" "$OD_BIN" tools browser-render render --entry <file.html> [--format screenshot|pdf]`. This asks the daemon to run browser automation outside the agent sandbox and waits for the PNG/PDF file to be written into the project.',
   ].join('\n');
 }
 
@@ -5103,6 +5106,7 @@ export async function startServer({
     listMediaTasksByProject,
     listElevenLabsVoiceOptions,
   };
+  const browserRenderDeps = { renderBrowserArtifact };
   const appConfigDeps = { readAppConfig, writeAppConfig };
   const orbitDeps = { orbitService };
   const nativeDialogDeps = { openNativeFolderDialog };
@@ -5312,6 +5316,17 @@ export async function startServer({
     projectFiles: projectFileDeps,
     conversations: conversationDeps,
     research: researchDeps,
+  });
+
+  registerBrowserRenderRoutes(app, {
+    auth: authDeps,
+    db,
+    http: httpDeps,
+    paths: pathDeps,
+    ids: idDeps,
+    projectStore: projectStoreDeps,
+    projectFiles: projectFileDeps,
+    browserRender: browserRenderDeps,
   });
 
   app.delete('/api/projects/:id', async (req, res) => {
@@ -12328,6 +12343,7 @@ export async function startServer({
     liveArtifacts: liveArtifactDeps,
     deploy: deployDeps,
     media: mediaDeps,
+    browserRender: browserRenderDeps,
     appConfig: appConfigDeps,
     orbit: orbitDeps,
     nativeDialogs: nativeDialogDeps,

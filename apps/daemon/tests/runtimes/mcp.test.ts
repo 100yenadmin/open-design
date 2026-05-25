@@ -48,6 +48,7 @@ test('MCP-capable agents can discover equivalent live artifact and connector too
     'live_artifacts_refresh',
     'connectors_list',
     'connectors_execute',
+    'browser_render',
   ]);
 
   for (const tool of tools) {
@@ -151,4 +152,49 @@ test('live artifact MCP update preserves nested input and artifact payload field
   assert.ok(call.init);
   assert.equal(call.url, 'http://127.0.0.1:17456/api/tools/live-artifacts/update');
   assert.deepEqual(JSON.parse(call.init.body as string), { artifactId: 'artifact-1', input, templateHtml, provenanceJson });
+});
+
+test('live artifact MCP browser_render starts a daemon render and waits for the result', async () => {
+  process.env.OD_DAEMON_URL = 'http://127.0.0.1:17456';
+  process.env.OD_TOOL_TOKEN = 'test-tool-token';
+  const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: String(url), init });
+    if (String(url).endsWith('/api/tools/browser-render')) {
+      return new Response(JSON.stringify({ taskId: 'task-1', status: 'queued' }), { status: 202 });
+    }
+    return new Response(JSON.stringify({
+      taskId: 'task-1',
+      status: 'done',
+      nextSince: 0,
+      file: { name: 'snapshots/index.png', mime: 'image/png', size: 1234 },
+    }), { status: 200 });
+  };
+
+  const response = await handleLiveArtifactsMcpRequest({
+    jsonrpc: '2.0',
+    id: 6,
+    method: 'tools/call',
+    params: {
+      name: 'browser_render',
+      arguments: { entry: 'index.html', output: 'snapshots/index.png', fullPage: true, timeoutMs: 120_000 },
+    },
+  }) as { error?: unknown; result?: { content?: Array<{ text: string }> } };
+
+  assert.equal(response.error, undefined);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0]?.url, 'http://127.0.0.1:17456/api/tools/browser-render');
+  assert.deepEqual(JSON.parse(calls[0]?.init?.body as string), {
+    entry: 'index.html',
+    output: 'snapshots/index.png',
+    fullPage: true,
+    timeoutMs: 120_000,
+  });
+  assert.equal(calls[1]?.url, 'http://127.0.0.1:17456/api/tools/browser-render/wait');
+  assert.deepEqual(JSON.parse(response.result?.content?.[0]?.text ?? '{}'), {
+    taskId: 'task-1',
+    status: 'done',
+    nextSince: 0,
+    file: { name: 'snapshots/index.png', mime: 'image/png', size: 1234 },
+  });
 });
