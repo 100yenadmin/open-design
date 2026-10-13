@@ -1093,12 +1093,20 @@ export function foldStrategyTaskTurns(messages: ChatMessage[]): ChatMessage[] {
     const head = folded[headIndex]!;
     const headContent = head.content ?? '';
     const tailContent = message.content ?? '';
+    const separator = headContent && tailContent && !headContent.endsWith('\n') ? '\n\n' : '';
     folded[headIndex] = {
       ...head,
       content: tailContent
-        ? `${headContent}${headContent && !headContent.endsWith('\n') ? '\n\n' : ''}${tailContent}`
+        ? `${headContent}${separator}${tailContent}`
         : headContent,
       events: [...(head.events ?? []), ...stampRunSpan(message)],
+      // Preserve the final physical Run's scope for completion checks while
+      // retaining the full history for display. Live rows may already contain
+      // predecessors, tracked by these same offsets in ProjectView.
+      strategyTaskPrefixLength: headContent.length + separator.length
+        + (message.strategyTaskPrefixLength ?? 0),
+      strategyTaskPrefixEventCount: (head.events?.length ?? 0)
+        + (message.strategyTaskPrefixEventCount ?? 0),
       producedFiles: [...(head.producedFiles ?? []), ...(message.producedFiles ?? [])],
       // The turn's status is the latest Run's: the earlier Runs finishing is an
       // internal step, not the turn ending.

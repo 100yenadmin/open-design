@@ -30,6 +30,24 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => { for (const b of buffers.splice(0))
     b.cancel(); cleanup(); vi.useRealTimers(); });
 describe('2746 ad907 data retention diagnostic', () => {
+    it.each([false, true])('keeps server-cleared legacy blocked events out of thinking recovery (extra stale event=%s)', extraEvent => {
+        const server: ChatMessage = {
+            id: 'm', role: 'assistant', content: '', runId: 'run-original', runStatus: 'running',
+            strategyTaskBlocked: false, events: [{ kind: 'thinking', text: HEAD }],
+        };
+        const local: ChatMessage = {
+            ...server, runStatus: 'failed', strategyTaskBlocked: true,
+            events: [
+                { kind: 'thinking', text: HEAD + TAIL },
+                ...(extraEvent ? [{ kind: 'status' as const, label: 'retired_protocol_block' }] : []),
+            ],
+        };
+        const merged = mergeServerMessagesIntoConversation([local], [server])[0];
+        assert.ok(merged, 'the server row remains present');
+        expect(merged.events).toEqual(server.events);
+        expect(merged.strategyTaskBlocked).toBe(false);
+        expect(merged.runStatus).toBe('running');
+    });
     it('does not erase displayed thinking suffix when equal-count older history arrives', async () => {
         const state = makeBuffer();
         state.append({ kind: 'thinking', text: HEAD });
