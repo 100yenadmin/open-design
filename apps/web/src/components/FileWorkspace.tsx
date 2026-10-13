@@ -4189,6 +4189,9 @@ export function FileWorkspace({
           {!initialMaterializationPending && fileActionsBefore ? (
             <div className="ws-tabs-file-actions-before">{fileActionsBefore}</div>
           ) : null}
+          {!initialMaterializationPending && headerActions ? (
+            <div className="ws-tabs-project-actions">{headerActions}</div>
+          ) : null}
           {/* Pure portal host. Whatever file is open owns these actions and
               portals them in; with no file open there is nothing to act on, so
               the slot stays empty rather than rendering a permanently-disabled
@@ -4200,9 +4203,6 @@ export function FileWorkspace({
             data-app-chrome-file-actions="true"
             hidden={!viewerFileActive}
           />
-          {!initialMaterializationPending && headerActions ? (
-            <div className="ws-tabs-project-actions">{headerActions}</div>
-          ) : null}
         </div>
       </div>
       {!initialMaterializationPending && launcherOpen ? (

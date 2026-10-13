@@ -303,6 +303,7 @@ import { localizePluginTitle } from './plugins-home/localization';
 import { DesignSystemPicker } from './DesignSystemPicker';
 import { PresenceBar } from '../collab/PresenceBar';
 import { useProjectCollab } from '../collab/useProjectCollab';
+import { OwnedContentUpdate } from './OwnedContentUpdate';
 import {
   currentUserDirectoryEntry,
   useTeamMembers,
@@ -14106,6 +14107,10 @@ export function ProjectView({
           />
         ) : null}
         <FileWorkspace
+          headerActions={projectCollab.enabled && projectCollab.isOwner && projectCollab.requestContentUpdate ? (
+            <OwnedContentUpdate key={`${project.id}:${projectRunWorkspaceContext?.workspaceId}:${projectRunWorkspaceContext?.workspaceMemberId}`}
+              update={projectCollab.ownedContentUpdate ?? null} request={projectCollab.requestContentUpdate} />
+          ) : null}
           projectId={project.id}
           projectName={currentProject.name}
           viewerOnly={projectMutationReadOnly}

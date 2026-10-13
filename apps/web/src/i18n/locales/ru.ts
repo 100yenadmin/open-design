@@ -1,6 +1,18 @@
 import type { Dict } from '../types';
 
 export const ru: Dict = {
+  "collab.contentUpdate.available": "Новая версия в облаке",
+  "collab.contentUpdate.updating": "Обновление…",
+  "collab.contentUpdate.askAgain": "Возобновить уведомления об обновлениях",
+  "collab.contentUpdate.title": "Доступно обновление из облака",
+  "collab.contentUpdate.description": "Синхронизировать последние данные с другого устройства на это? Локальное содержимое проекта будет заменено. Страницы можно восстановить из локальной истории версий; изображения и другие файлы могут быть невосстановимы.",
+  "collab.contentUpdate.dontPrompt": "Не уведомлять об этом проекте 24 часа",
+  "collab.contentUpdate.later": "Не сейчас",
+  "collab.contentUpdate.replace": "Заменить версией из облака",
+  "collab.contentUpdate.failed": "Не удалось обновить. Повторите попытку.",
+  "collab.contentUpdate.busy": "Идёт генерация или загрузка. Повторите после завершения.",
+  "collab.contentUpdate.unsupported": "Замена из облака не поддерживается для импортированных папок.",
+  "fileViewer.versions.sourceSync": "Синхронизировано",
   'billing.wallet': 'Баланс кошелька',
   'billing.codingPlanDesignPlan': 'Design Plan',
   'billing.codingPlanPeriodHours': '{count} ч',

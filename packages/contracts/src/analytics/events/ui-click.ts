@@ -1407,7 +1407,7 @@ export interface ShareOptionPopoverClickProps {
 // Provenance of an HTML file version, mirroring the daemon's
 // ProjectFileVersion.source: 'ai' = written by a run, 'manual' = manual
 // edit/undo/redo, 'restore' = created by restoring an older version.
-export type TrackingFileVersionSource = 'ai' | 'manual' | 'restore';
+export type TrackingFileVersionSource = 'ai' | 'manual' | 'restore' | 'sync';
 
 // Clicks inside the HTML file version history modal (opened via the artifact
 // toolbar `versions` element). `restore` opens the confirm popover;

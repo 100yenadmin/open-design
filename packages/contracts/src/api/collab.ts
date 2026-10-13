@@ -107,6 +107,8 @@ export interface CollabPresenceLeaveResponse extends OkResponse {
  * `syncState` is the project sync state (see {@link ProjectSyncState}).
  */
 export interface CollabSyncStatusResponse {
+  /** Owner-device overwrite authorization; absent for read-only member mirrors. */
+  ownedContentUpdate?: OwnedProjectContentUpdate | null;
   publishedVersion: number | null;
   /**
    * The latest published version this daemon has durably materialized into the
@@ -170,6 +172,54 @@ export interface CollabProjectBootstrapResponse {
 export interface CollabPullResponse extends OkResponse {
   /** The actual hub version materialized by this pull, or null when unpublished. */
   version: number | null;
+}
+
+export type OwnedProjectContentUpdateState =
+  | 'up_to_date' | 'confirmation_required' | 'ignored' | 'suppressed' | 'downloading'
+  | 'busy' | 'failed' | 'unsupported';
+
+export interface OwnedProjectContentUpdate {
+  state: OwnedProjectContentUpdateState;
+  latestVersion: number | null;
+  localVersion: number | null;
+  /** Device-local reminder silence; never an authorization to replace content. */
+  promptSuppressedUntil: number | null;
+  updatedAt: number;
+  errorCode?: 'PROJECT_BUSY' | 'PROJECT_DIRECTORY_UNSUPPORTED' | 'PROJECT_SYNC_FAILED';
+}
+
+/** POST /api/projects/:id/collab/update: shared by web and od collab. */
+export interface OwnedProjectContentUpdateRequest {
+  action: 'check' | 'accept' | 'dismiss' | 'reset-preference';
+  /** Exact offered head. A stale acceptance cannot approve a newer snapshot. */
+  version?: number;
+  /** Silence future automatic prompts, including new heads; explicit acceptance remains required. */
+  dontPromptFor24h?: boolean;
+  /** Explicit manual checks can re-offer a previously dismissed version. */
+  manual?: boolean;
+}
+
+export interface OwnedProjectContentUpdateResponse {
+  update: OwnedProjectContentUpdate;
+}
+
+export function parseOwnedProjectContentUpdate(value: unknown): OwnedProjectContentUpdate | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const input = value as Record<string, unknown>;
+  const states: readonly string[] = ['up_to_date', 'confirmation_required', 'ignored', 'suppressed', 'downloading', 'busy', 'failed', 'unsupported'];
+  if (typeof input.state !== 'string' || !states.includes(input.state)) return null;
+  const version = (v: unknown): v is number | null => v === null || (typeof v === 'number' && Number.isSafeInteger(v) && v >= 0);
+  if (!version(input.latestVersion) || !version(input.localVersion)
+    || (input.promptSuppressedUntil !== null && (typeof input.promptSuppressedUntil !== 'number' || !Number.isFinite(input.promptSuppressedUntil) || input.promptSuppressedUntil < 0))
+    || typeof input.updatedAt !== 'number' || !Number.isFinite(input.updatedAt)) return null;
+  const codes = ['PROJECT_BUSY', 'PROJECT_DIRECTORY_UNSUPPORTED', 'PROJECT_SYNC_FAILED'];
+  return {
+    state: input.state as OwnedProjectContentUpdateState,
+    latestVersion: input.latestVersion, localVersion: input.localVersion,
+    promptSuppressedUntil: input.promptSuppressedUntil as number | null, updatedAt: input.updatedAt,
+    ...(typeof input.errorCode === 'string' && codes.includes(input.errorCode)
+      ? { errorCode: input.errorCode as NonNullable<OwnedProjectContentUpdate['errorCode']> } : {}),
+  };
 }
 
 /** POST /api/projects/:id/collab/sync-intent response. */

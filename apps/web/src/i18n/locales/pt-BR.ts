@@ -1,6 +1,18 @@
 import type { Dict } from '../types';
 
 export const ptBR: Dict = {
+  "collab.contentUpdate.available": "Nova versão na nuvem",
+  "collab.contentUpdate.updating": "Atualizando…",
+  "collab.contentUpdate.askAgain": "Restaurar avisos de atualização",
+  "collab.contentUpdate.title": "Atualização na nuvem disponível",
+  "collab.contentUpdate.description": "Sincronizar o conteúdo mais recente de outro dispositivo neste? O conteúdo local do projeto será substituído. As páginas podem ser recuperadas do histórico local; imagens e outros arquivos talvez não possam.",
+  "collab.contentUpdate.dontPrompt": "Não avisar sobre este projeto por 24 horas",
+  "collab.contentUpdate.later": "Agora não",
+  "collab.contentUpdate.replace": "Substituir pela versão da nuvem",
+  "collab.contentUpdate.failed": "Falha na atualização. Tente novamente.",
+  "collab.contentUpdate.busy": "Geração ou envio em andamento. Tente depois de concluir.",
+  "collab.contentUpdate.unsupported": "A substituição pela nuvem não é compatível com pastas importadas.",
+  "fileViewer.versions.sourceSync": "Sincronizado",
   'billing.wallet': 'Saldo da carteira',
   'billing.codingPlanDesignPlan': 'Design Plan',
   'billing.codingPlanPeriodHours': '{count} horas',

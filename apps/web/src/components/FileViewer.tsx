@@ -3262,12 +3262,14 @@ function isHtmlVersionableFile(file: ProjectFile): boolean {
 }
 
 function fileVersionSourceLabel(version: ProjectFileVersion, t: TranslateFn): string {
+  if (version.source === 'sync') return t('fileViewer.versions.sourceSync');
   if (version.source === 'manual') return t('fileViewer.versions.sourceManual');
   if (version.source === 'restore') return t('fileViewer.versions.sourceRestore');
   return t('fileViewer.versions.sourceAi');
 }
 
 function fileVersionSourceClassName(version: ProjectFileVersion): string {
+  if (version.source === 'sync') return 'sync';
   if (version.source === 'manual') return 'manual';
   if (version.source === 'restore') return 'restore';
   return 'ai';
@@ -3276,6 +3278,7 @@ function fileVersionSourceClassName(version: ProjectFileVersion): string {
 // Any unknown/legacy source value counts as 'ai', matching the label and
 // class-name fallbacks above.
 function fileVersionSourceToTracking(version: ProjectFileVersion): TrackingFileVersionSource {
+  if (version.source === 'sync') return 'sync';
   if (version.source === 'manual') return 'manual';
   if (version.source === 'restore') return 'restore';
   return 'ai';

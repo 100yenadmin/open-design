@@ -121,6 +121,11 @@ export interface CollabRuntime {
 }
 
 export interface CreateCollabRuntimeOptions {
+  coordinatePublication?: (
+    projectId: string,
+    principal: ResourceHubPrincipal | null | undefined,
+    publish: () => Promise<PublishedResourceVersion | null>,
+  ) => Promise<PublishedResourceVersion | null>;
   adapter?: ResourcePublishAdapter;
   /** Managed-project directory resolver, so the real hub adapter can pack/land. */
   resolveProjectDir?: (projectId: string) => string | Promise<string>;
@@ -515,6 +520,9 @@ export function createCollabRuntime(options: CreateCollabRuntimeOptions = {}): C
     });
   }
 
+  const publishContent: ResourcePublishAdapter['publish'] = (input) => options.coordinatePublication
+    ? options.coordinatePublication(input.projectId, input.principal, () => baseAdapter.publish(input))
+    : baseAdapter.publish(input);
   const schedulerAdapter: ResourcePublishAdapter = {
     async publish({ projectId: key, reason }) {
       const { projectId, principal } = parseScopedProjectKey(key);
@@ -531,7 +539,7 @@ export function createCollabRuntime(options: CreateCollabRuntimeOptions = {}): C
         if (principals.length > 0) {
           const versions = new Map<string, PublishedResourceVersion>();
           for (const scopedPrincipal of principals) {
-            const result = await baseAdapter.publish({
+            const result = await publishContent({
               projectId,
               reason,
               principal: scopedPrincipal,
@@ -558,7 +566,7 @@ export function createCollabRuntime(options: CreateCollabRuntimeOptions = {}): C
         // Refuse outright instead of publish-then-cleanup.
         if (unshared.has(projectId)) return null;
       }
-      return baseAdapter.publish({
+      return publishContent({
         projectId,
         reason,
         ...(principal ? { principal } : {}),
@@ -601,7 +609,7 @@ export function createCollabRuntime(options: CreateCollabRuntimeOptions = {}): C
     const key = principal ? scopedProjectKey(projectId, principal) : projectId;
     let publishedResult: PublishedResourceVersion | null = null;
     try {
-      const result = await baseAdapter.publish({
+      const result = await publishContent({
         projectId,
         reason,
         ...(principal ? { principal } : {}),

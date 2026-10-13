@@ -1,6 +1,18 @@
 import type { Dict } from '../types';
 
 export const ar: Dict = {
+  "collab.contentUpdate.available": "يتوفر إصدار سحابي جديد",
+  "collab.contentUpdate.updating": "جارٍ التحديث…",
+  "collab.contentUpdate.askAgain": "استعادة تنبيهات التحديث",
+  "collab.contentUpdate.title": "يتوفر تحديث سحابي",
+  "collab.contentUpdate.description": "هل تريد مزامنة أحدث محتوى من جهاز آخر إلى هذا الجهاز؟ سيُستبدل محتوى المشروع المحلي. يمكن استعادة الصفحات من سجل الإصدارات المحلي؛ وقد يتعذر استعادة الصور والملفات الأخرى.",
+  "collab.contentUpdate.dontPrompt": "عدم التنبيه لهذا المشروع لمدة 24 ساعة",
+  "collab.contentUpdate.later": "ليس الآن",
+  "collab.contentUpdate.replace": "استبدال بنسخة السحابة",
+  "collab.contentUpdate.failed": "فشل التحديث. حاول مرة أخرى.",
+  "collab.contentUpdate.busy": "يجري إنشاء المحتوى أو رفعه. حاول بعد الانتهاء.",
+  "collab.contentUpdate.unsupported": "استبدال المحتوى السحابي غير مدعوم للمجلدات المستوردة.",
+  "fileViewer.versions.sourceSync": "تمت المزامنة",
   'billing.wallet': 'رصيد المحفظة',
   'billing.codingPlanDesignPlan': 'Design Plan',
   'billing.codingPlanPeriodHours': '{count} ساعات',

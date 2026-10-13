@@ -131,6 +131,16 @@ export const MEMBER_MIRROR_PUSH_EXCLUDED_ENTRIES: readonly string[] = (() => {
   return [...secretBearing, ...directoryOnly];
 })();
 
+/** The same entry rules used by published snapshots, local hashes and preservation. */
+export function isExcludedProjectContentEntry(name: string, isDirectory: boolean): boolean {
+  return MEMBER_MIRROR_PUSH_EXCLUDED_ENTRIES.some((rule) => rule.endsWith('/')
+    ? isDirectory && rule.slice(0, -1) === name
+    : rule === name)
+    || MEMBER_MIRROR_EXCLUDED_PREFIXES.some((prefix) => prefix.endsWith('/')
+      ? isDirectory && name.startsWith(prefix.slice(0, -1))
+      : name.startsWith(prefix));
+}
+
 /** Run `vela resource <args>` and resolve its stdout. */
 export type RunVelaResource = (
   args: string[],
@@ -200,10 +210,7 @@ export function createVelaCliResourceAdapter(
   }
 
   function resourceIdsFor(projectId: string, principal?: ResourceHubPrincipal | null): string[] {
-    const primary = resourceIdFor(projectId, principal);
-    if (!principal) return [primary];
-    const legacy = resourceIdFor(projectId, null);
-    return legacy === primary ? [primary] : [primary, legacy];
+    return projectResourceIdsFor(projectId, principal, resourceIdFor);
   }
 
   return {
@@ -300,7 +307,18 @@ export function createVelaCliResourceAdapter(
   };
 }
 
-function isMissingResourceError(error: unknown): boolean {
+export function projectResourceIdsFor(
+  projectId: string,
+  principal?: ResourceHubPrincipal | null,
+  resourceIdFor: typeof projectResourceIdFor = projectResourceIdFor,
+): string[] {
+  const primary = resourceIdFor(projectId, principal);
+  if (!principal) return [primary];
+  const legacy = resourceIdFor(projectId, null);
+  return legacy === primary ? [primary] : [primary, legacy];
+}
+
+export function isMissingResourceError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /resource_not_found|status\s+404|ref_not_found/u.test(message);
 }

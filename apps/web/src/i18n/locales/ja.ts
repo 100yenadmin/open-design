@@ -1,6 +1,18 @@
 import type { Dict } from '../types';
 
 export const ja: Dict = {
+  "collab.contentUpdate.available": "クラウドに新しいバージョンがあります",
+  "collab.contentUpdate.updating": "更新中…",
+  "collab.contentUpdate.askAgain": "更新通知を再開",
+  "collab.contentUpdate.title": "クラウドに更新があります",
+  "collab.contentUpdate.description": "他のデバイスの最新内容をこのデバイスに同期しますか？ローカルのプロジェクト内容が上書きされます。ページはローカルのバージョン履歴から復元できますが、画像やその他のファイルは復元できない場合があります。",
+  "collab.contentUpdate.dontPrompt": "このプロジェクトの通知を24時間表示しない",
+  "collab.contentUpdate.later": "今は更新しない",
+  "collab.contentUpdate.replace": "クラウド版で上書き",
+  "collab.contentUpdate.failed": "更新に失敗しました。再試行してください。",
+  "collab.contentUpdate.busy": "生成またはアップロード中です。完了後に再試行してください。",
+  "collab.contentUpdate.unsupported": "インポートしたフォルダーのクラウド上書きには対応していません。",
+  "fileViewer.versions.sourceSync": "同期",
   'billing.wallet': 'ウォレット残高',
   'billing.codingPlanDesignPlan': 'Design Plan',
   'billing.codingPlanPeriodHours': '{count} 時間',

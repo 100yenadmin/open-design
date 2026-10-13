@@ -1,6 +1,18 @@
 import type { Dict } from '../types';
 
 export const uk: Dict = {
+  "collab.contentUpdate.available": "Нова версія в хмарі",
+  "collab.contentUpdate.updating": "Оновлення…",
+  "collab.contentUpdate.askAgain": "Відновити сповіщення про оновлення",
+  "collab.contentUpdate.title": "Доступне оновлення з хмари",
+  "collab.contentUpdate.description": "Синхронізувати найновіший вміст з іншого пристрою на цей? Локальний вміст проєкту буде замінено. Сторінки можна відновити з локальної історії версій; зображення та інші файли можуть бути невідновними.",
+  "collab.contentUpdate.dontPrompt": "Не сповіщати про цей проєкт протягом 24 годин",
+  "collab.contentUpdate.later": "Не зараз",
+  "collab.contentUpdate.replace": "Замінити версією з хмари",
+  "collab.contentUpdate.failed": "Не вдалося оновити. Спробуйте ще раз.",
+  "collab.contentUpdate.busy": "Триває генерація або завантаження. Спробуйте після завершення.",
+  "collab.contentUpdate.unsupported": "Заміна з хмари не підтримується для імпортованих папок.",
+  "fileViewer.versions.sourceSync": "Синхронізовано",
   'billing.wallet': 'Баланс гаманця',
   'billing.codingPlanDesignPlan': 'Design Plan',
   'billing.codingPlanPeriodHours': '{count} год',

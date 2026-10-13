@@ -4010,6 +4010,18 @@ export interface Dict {
   'fileViewer.versions.countMany': string;
   'fileViewer.versions.current': string;
   'fileViewer.versions.sourceAi': string;
+  'collab.contentUpdate.available': string;
+  'collab.contentUpdate.updating': string;
+  'collab.contentUpdate.askAgain': string;
+  'collab.contentUpdate.title': string;
+  'collab.contentUpdate.description': string;
+  'collab.contentUpdate.dontPrompt': string;
+  'collab.contentUpdate.later': string;
+  'collab.contentUpdate.replace': string;
+  'collab.contentUpdate.failed': string;
+  'collab.contentUpdate.busy': string;
+  'collab.contentUpdate.unsupported': string;
+  'fileViewer.versions.sourceSync': string;
   'fileViewer.versions.sourceManual': string;
   'fileViewer.versions.sourceRestore': string;
   'fileViewer.versions.restoredFrom': string;

@@ -26,6 +26,7 @@ import {
 import { migrateCollabSyncSnapshots } from './collab/sync-snapshot-store.js';
 import { migrateCommentRelayOutbox } from './collab/comment-relay-outbox.js';
 import { migratePublicFilePublications } from './collab/public-file-publication-store.js';
+import { migrateOwnedContentSync } from './collab/owned-content-store.js';
 import { migrateAmrTerminalReportOutbox } from './storage/amr-terminal-report-outbox.js';
 import {
   collapseWorkspaceProjectHomes,
@@ -625,6 +626,7 @@ function migrate(db: SqliteDb): void {
   migrateCommentRelayOutbox(db);
   migrateAmrTerminalReportOutbox(db);
   migratePublicFilePublications(db);
+  migrateOwnedContentSync(db);
 }
 
 /**

@@ -56,7 +56,7 @@ export interface ProjectFilesResponse {
   files: ProjectFile[];
 }
 
-export type ProjectFileVersionSource = 'ai' | 'manual' | 'restore';
+export type ProjectFileVersionSource = 'ai' | 'manual' | 'restore' | 'sync';
 export type ProjectFileVersionPromptSource = 'message' | 'project' | 'manual' | 'restore';
 
 export type ArtifactOriginEntrySurface =

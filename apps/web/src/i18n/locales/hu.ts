@@ -1,6 +1,18 @@
 import type { Dict } from '../types';
 
 export const hu: Dict = {
+  "collab.contentUpdate.available": "Új felhőverzió",
+  "collab.contentUpdate.updating": "Frissítés…",
+  "collab.contentUpdate.askAgain": "Frissítési értesítések visszaállítása",
+  "collab.contentUpdate.title": "Felhőfrissítés érhető el",
+  "collab.contentUpdate.description": "Szinkronizálja egy másik eszköz legújabb tartalmát erre az eszközre? A helyi projekttartalom lecserélődik. Az oldalak visszaállíthatók a helyi verzióelőzményekből; a képek és más fájlok esetleg nem.",
+  "collab.contentUpdate.dontPrompt": "Ne értesítsen erről a projektről 24 órán át",
+  "collab.contentUpdate.later": "Most nem",
+  "collab.contentUpdate.replace": "Csere a felhőverzióra",
+  "collab.contentUpdate.failed": "A frissítés sikertelen. Próbálja újra.",
+  "collab.contentUpdate.busy": "Generálás vagy feltöltés folyamatban. Próbálja utána.",
+  "collab.contentUpdate.unsupported": "Importált mappáknál a felhőből való csere nem támogatott.",
+  "fileViewer.versions.sourceSync": "Szinkronizálva",
   'billing.wallet': 'Tárca egyenlege',
   'billing.codingPlanDesignPlan': 'Design Plan',
   'billing.codingPlanPeriodHours': '{count} óra',

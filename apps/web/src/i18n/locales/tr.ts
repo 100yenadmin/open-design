@@ -1,6 +1,18 @@
 import type { Dict } from '../types';
 
 export const tr: Dict = {
+  "collab.contentUpdate.available": "Bulutta yeni sürüm var",
+  "collab.contentUpdate.updating": "Güncelleniyor…",
+  "collab.contentUpdate.askAgain": "Güncelleme bildirimlerini geri aç",
+  "collab.contentUpdate.title": "Bulut güncellemesi mevcut",
+  "collab.contentUpdate.description": "Başka bir cihazdaki en güncel içerik bu cihaza eşitlensin mi? Yerel proje içeriği değiştirilecektir. Sayfalar yerel sürüm geçmişinden geri yüklenebilir; görseller ve diğer dosyalar geri yüklenemeyebilir.",
+  "collab.contentUpdate.dontPrompt": "Bu proje için 24 saat bildirim gösterme",
+  "collab.contentUpdate.later": "Şimdi değil",
+  "collab.contentUpdate.replace": "Bulut sürümüyle değiştir",
+  "collab.contentUpdate.failed": "Güncelleme başarısız. Tekrar deneyin.",
+  "collab.contentUpdate.busy": "Oluşturma veya yükleme sürüyor. Bittikten sonra tekrar deneyin.",
+  "collab.contentUpdate.unsupported": "İçe aktarılan klasörlerde buluttan değiştirme desteklenmiyor.",
+  "fileViewer.versions.sourceSync": "Eşitlendi",
   'billing.wallet': 'Cüzdan bakiyesi',
   'billing.codingPlanDesignPlan': 'Design Plan',
   'billing.codingPlanPeriodHours': '{count} saat',
